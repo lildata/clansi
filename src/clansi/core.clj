@@ -1,8 +1,13 @@
 (ns clansi.core)
 
+; see also http://www.lihaoyi.com/post/BuildyourownCommandLinewithANSIescapecodes.html
+
 (def ANSI-CODES
-  {:reset              "[0m"
-   :bright             "[1m"
+  { ; we alwarys need to end up with \u 001b [0m
+    :reset              "[0m"
+   
+   ;;decoration
+   :bright             "[1m" ; what about ;1 ???
    :blink-slow         "[5m"
    :underline          "[4m"
    :underline-off      "[24m"
@@ -11,6 +16,7 @@
    :strikethrough      "[9m"
    :strikethrough-off  "[29m"
 
+   ;; color
    :default "[39m"
    :white   "[37m"
    :black   "[30m"
@@ -20,7 +26,10 @@
    :yellow  "[33m"
    :magenta "[35m"
    :cyan    "[36m"
+    
+    ; what about 256 colors support? like \u001b[38;5;${ID}m
 
+   ;; background color
    :bg-default "[49m"
    :bg-white   "[47m"
    :bg-black   "[40m"
@@ -52,6 +61,7 @@
   (if *use-ansi*
     (str \u001b (get ANSI-CODES code (:reset ANSI-CODES)))
     ""))
+  ; \u001b is <control>, the special character that starts off most Ansi escapes
 
 (defmacro without-ansi
   "Runs the given code with the use-ansi variable temporarily bound to
@@ -101,54 +111,3 @@
   (doall
     (map #(println (style (name %) %)) (sort-by name (keys ANSI-CODES))))
   nil)
-
-(def doc-style* (ref {:line  :blue
-                      :title :bright
-                      :args  :red
-                      :macro :blue
-                      :doc   :green}))
-
-(defn print-special-doc-color
-  "Print stylized special form documentation."
-  [name type anchor]
-  (println (style "-------------------------" (:line @doc-style*)))
-  (println (style name (:title @doc-style*)))
-  (println type)
-  (println (style (str "  Please see http://clojure.org/special_forms#" anchor)
-                  (:doc @doc-style*))))
-
-(defn print-namespace-doc-color
-  "Print stylized documentation for a namespace."
-  [nspace]
-  (println (style "-------------------------"    (:line @doc-style*)))
-  (println (style (str (ns-name nspace))         (:title @doc-style*)))
-  (println (style (str " " (:doc (meta nspace))) (:doc @doc-style*))))
-
-(defn print-doc-color
-  "Print stylized function documentation."
-  [v]
-  (println (style "-------------------------" (:line @doc-style*)))
-  (println (style (str (ns-name (:ns (meta v))) "/" (:name (meta v)))
-                  (:title @doc-style*)))
-  (print "(")
-  (doseq [alist (:arglists (meta v))]
-   (print "[" (style (apply str (interpose " " alist)) (:args @doc-style*)) "]"))
-  (println ")")
-
-  (when (:macro (meta v))
-    (println (style "Macro" (:macro @doc-style*))))
-  (println "  " (style (:doc (meta v)) (:doc @doc-style*))))
-
-(defmacro color-doc
-  "A stylized version of clojure.core/doc."
-  [v]
-  `(binding [print-doc print-doc-color
-             print-special-doc print-special-doc-color
-             print-namespace-doc print-namespace-doc-color]
-     (doc ~v)))
-
-(defn colorize-docs
-  []
-  (intern 'clojure.core 'print-doc print-doc-color)
-  (intern 'clojure.core 'print-special-doc print-special-doc-color)
-  (intern 'clojure.core 'print-namespace-doc print-namespace-doc-color))
